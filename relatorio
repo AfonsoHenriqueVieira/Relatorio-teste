@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Relatório</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      color: #333;
+      margin: 20px 0;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 800px;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      margin-bottom: 40px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"], input[type="number"] {
+      padding: 10px;
+      font-size: 1rem;
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .controls {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    .controls button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      margin: 5px;
+      border: none;
+      border-radius: 4px;
+      background-color: #3f51b5;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .controls button:hover {
+      background-color: #303f9f;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      text-align: center;
+      padding: 12px 15px;
+    }
+
+    th {
+      background-color: #eeeeee;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    tr:nth-child(odd) {
+      background-color: #ffffff;
+    }
+
+    .fechamento-info {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #fff;
+      border-left: 4px solid #3f51b5;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      max-width: 500px;
+      width: 90%;
+      border-radius: 8px;
+    }
+
+    .modal-content .form-group {
+      text-align: left;
+    }
+
+    .programacao {
+      margin-top: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .modal-content {
+        font-size: 0.9rem;
+      }
+    }
+
+	@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .container, .container * {
+    visibility: visible;
+  }
+
+  .container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .controls, .form-group {
+    display: none !important;
+  }
+}
+
+  @media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printHeader, #printHeader * {
+    display: block !important;
+    visibility: visible;
+  }
+
+  .container, .container * {
+    visibility: visible;
+  }
+
+  .container {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 100%;
+  }
+
+  .controls, .form-group {
+    display: none !important;
+  }
+}
+
+  </style>
+</head>
+<body>
+
+  <h1>Relatório</h1>
+  <div id="printHeader" style="display: none; text-align: center; margin-bottom: 20px;">
+  <h2 id="printTitle"></h2>
+</div>
+
+
+  <div class="container">
+    <div class="form-group">
+      <label for="minutos">Minutos:</label>
+      <input type="number" id="minutos" maxlength="3" oninput="this.value=this.value.slice(0,3)" />
+    </div>
+
+    <div class="form-group">
+      <label for="descricao">Descrição:</label>
+      <input type="text" id="descricao" />
+    </div>
+
+    <div class="controls">
+      <button onclick="adicionarEntrada()">Preencher</button>
+      <button onclick="abrirModal()">Fechamento</button>
+      <button onclick="exportarPDF()">Exportar PDF</button>
+      <button onclick="limparTudo()">Limpar Tudo</button>
+	<button onclick="imprimir()">Imprimir</button>
+    </div>
+
+    <table id="relatorioTable">
+      <thead>
+        <tr>
+          <th>Minutos</th>
+          <th>Descrição</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div id="fechamentoInfo" class="fechamento-info" style="display: none;"></div>
+  </div>
+
+ <!-- Modal -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <h2>Fechamento da Produção</h2>
+    <div id="programacoes">
+      <div class="programacao-bloco">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <input type="number" class="codigo" placeholder="Código" maxlength="3" oninput="this.value=this.value.slice(0,3)" style="width: 80px; padding: 5px;" />
+          <input type="number" class="fardos" placeholder="Fardos" maxlength="4" oninput="this.value=this.value.slice(0,4)" style="width: 100px; padding: 5px;" />
+          <input type="number" class="logs" placeholder="Logs" style="width: 100px; padding: 5px;" />
+        </div>
+      </div>
+    </div>
+    <button onclick="adicionarTroca()">+ Troca</button>
+
+    <div class="form-group">
+      <label for="responsavel">Nome de quem fechou:</label>
+      <input type="text" id="responsavel" style="padding: 8px; width: 100%;" />
+    </div>
+
+    <button onclick="fecharModal()">OK</button>
+  </div>
+</div>
+
+<script>
+  const tabela = document.getElementById("relatorioTable").querySelector("tbody");
+  const fechamentoDiv = document.getElementById("fechamentoInfo");
+
+  function adicionarEntrada() {
+    const minutos = document.getElementById("minutos").value;
+    const descricao = document.getElementById("descricao").value;
+
+    if (!minutos || !descricao) {
+      alert("Preencha os dois campos.");
+      return;
+    }
+
+    const linha = document.createElement("tr");
+    linha.innerHTML = `<td>${minutos}</td><td>${descricao}</td>`;
+    tabela.appendChild(linha);
+
+    document.getElementById("minutos").value = "";
+    document.getElementById("descricao").value = "";
+  }
+
+  function abrirModal() {
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  function fecharModal() {
+    const responsavel = document.getElementById("responsavel").value;
+    if (!responsavel) {
+      alert("Informe o nome de quem fechou.");
+      return;
+    }
+
+    const blocos = document.querySelectorAll(".programacao-bloco");
+    let fechamentoHTML = `<strong>Fechamento:</strong><br>`;
+    blocos.forEach((bloco, index) => {
+      const codigo = bloco.querySelector(".codigo").value;
+      const fardos = bloco.querySelector(".fardos").value;
+      const logs = bloco.querySelector(".logs").value;
+
+      if (!codigo || !fardos || !logs) {
+        alert("Preencha todos os campos da troca " + (index + 1));
+        return;
+      }
+
+      fechamentoHTML += `Troca ${index + 1}: Código: ${codigo}, Fardos: ${fardos}, Logs: ${logs}<br>`;
+    });
+
+    fechamentoHTML += `Fechado por: ${responsavel}`;
+    fechamentoDiv.innerHTML = fechamentoHTML;
+    fechamentoDiv.style.display = "block";
+
+    document.getElementById("modal").style.display = "none";
+    document.getElementById("responsavel").value = "";
+    document.getElementById("programacoes").innerHTML = `
+      <div class="programacao-bloco">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <input type="number" class="codigo" placeholder="Código" maxlength="3" oninput="this.value=this.value.slice(0,3)" style="width: 80px; padding: 5px;" />
+          <input type="number" class="fardos" placeholder="Fardos" maxlength="4" oninput="this.value=this.value.slice(0,4)" style="width: 100px; padding: 5px;" />
+          <input type="number" class="logs" placeholder="Logs" style="width: 100px; padding: 5px;" />
+        </div>
+      </div>
+    `;
+  }
+
+  function adicionarTroca() {
+    const novaTroca = document.createElement("div");
+    novaTroca.className = "programacao-bloco";
+    novaTroca.innerHTML = `
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+        <input type="number" class="codigo" placeholder="Código" maxlength="3" oninput="this.value=this.value.slice(0,3)" style="width: 80px; padding: 5px;" />
+        <input type="number" class="fardos" placeholder="Fardos" maxlength="4" oninput="this.value=this.value.slice(0,4)" style="width: 100px; padding: 5px;" />
+        <input type="number" class="logs" placeholder="Logs" style="width: 100px; padding: 5px;" />
+      </div>
+    `;
+    document.getElementById("programacoes").appendChild(novaTroca);
+  }
+
+  function limparTudo() {
+    tabela.innerHTML = "";
+    fechamentoDiv.style.display = "none";
+    fechamentoDiv.innerHTML = "";
+  }
+
+  function imprimir() {
+  if (tabela.children.length === 0 && fechamentoDiv.innerText.trim() === "") {
+    alert("Nada para imprimir.");
+    return;
+  }
+  window.print();
+}
+
+
+  window.onclick = function(event) {
+    const modal = document.getElementById("modal");
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  }
+
+  async function exportarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(12);
+  let y = 10;
+
+  doc.text("Relatório de Produção", 75, y);
+  y += 10;
+
+  doc.text("Entradas:", 10, y); y += 8;
+  const rows = Array.from(tabela.querySelectorAll("tr"));
+  rows.forEach(row => {
+    const cols = row.querySelectorAll("td");
+    if (cols.length > 0) {
+      doc.text(`Minutos: ${cols[0].textContent}, Descrição: ${cols[1].textContent}`, 10, y);
+      y += 7;
+    }
+  });
+
+  if (fechamentoDiv.innerText.trim()) {
+    y += 10;
+    doc.text("Fechamento:", 10, y); y += 8;
+    const lines = fechamentoDiv.innerText.split("\n");
+    lines.forEach(line => {
+      doc.text(line, 10, y);
+      y += 7;
+    });
+  }
+
+  // Obter data atual no formato DD/MM/AAAA
+  const hoje = new Date();
+  const dd = String(hoje.getDate()).padStart(2, '0');
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0'); // Janeiro é 0
+  const yyyy = hoje.getFullYear();
+  const nomeArquivo = `relatorio-${dd}-${mm}-${yyyy}.pdf`;
+
+  doc.save(nomeArquivo);
+}
+
+  function imprimir() {
+  if (tabela.children.length === 0 && fechamentoDiv.innerText.trim() === "") {
+    alert("Nada para imprimir.");
+    return;
+  }
+
+  // Define título com data
+  const hoje = new Date();
+  const dd = String(hoje.getDate()).padStart(2, '0');
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+  const yyyy = hoje.getFullYear();
+  document.getElementById("printTitle").textContent = `Sincro 2 - ${dd}/${mm}/${yyyy}`;
+  document.getElementById("printHeader").style.display = "block";
+
+  window.print();
+
+  // Após impressão, esconder o cabeçalho de novo
+  document.getElementById("printHeader").style.display = "none";
+}
+
+</script>
+
+
+</body>
+</html>
